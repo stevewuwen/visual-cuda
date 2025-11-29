@@ -405,7 +405,7 @@ const CodePanel = ({ step }: { step: Step }) => {
             <div className="w-3 h-3 rounded-full bg-yellow-500"/>
             <div className="w-3 h-3 rounded-full bg-green-500"/>
         </div>
-        <span className="text-slate-400 ml-2">kernel.cu</span>
+        <span className="text-slate-400 ml-2">transform.cu</span>
       </div>
       <div className="p-4 overflow-auto flex-1 relative">
         {LINES.map((line) => {
@@ -438,6 +438,12 @@ const CodePanel = ({ step }: { step: Step }) => {
 };
 
 // --- Main App Component ---
+
+export const metadata = {
+  name: 'Matrix Transform',
+  description: 'A visualization of the matrix transpose operation, highlighting coalesced vs. uncoalesced memory access patterns.',
+  image: 'https://tse1.mm.bing.net/th/id/OIP.sqfW01BX3RxX4qF3ths67AHaCb?rs=1&pid=ImgDetMain&o=7&rm=3',
+};
 
 const CudaVisualizer = () => {
   const steps = useMemo(() => generateSteps(), []);
@@ -482,9 +488,8 @@ const CudaVisualizer = () => {
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-4">
         <div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-green-400 to-indigo-500 bg-clip-text text-transparent">
-            CUDA Kernel Visualization
+            Simulating Naive Matrix Transpose (6x6 Matrix on 2 SMs)
             </h1>
-            <p className="text-slate-500 text-sm mt-1">Simulating Naive Matrix Transpose (6x6 Matrix on 2 SMs)</p>
         </div>
 
         <div className="flex items-center gap-2 bg-slate-900 p-2 rounded-lg border border-slate-800">
