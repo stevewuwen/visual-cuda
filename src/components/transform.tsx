@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, SkipForward, SkipBack, RefreshCw, Cpu, Layers, Database, AlertTriangle, ArrowRight } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { motion } from 'framer-motion';
+import { Play, Pause, SkipForward, SkipBack, RefreshCw, Cpu, Database, AlertTriangle, ArrowRight } from 'lucide-react';
 
 // --- Constants & Types ---
 
@@ -40,22 +40,6 @@ interface Step {
 }
 
 // The Source Code
-const CUDA_CODE = `__global__ void matrix_transpose(float* in, float* out) {
-  // 1. Calculate Global Coordinates
-  int col = blockIdx.x * blockDim.x + threadIdx.x;
-  int row = blockIdx.y * blockDim.y + threadIdx.y;
-
-  // 2. Boundary Check (Divergence source)
-  if (row < rows && col < cols) {
-      
-      // 3. Global Memory Load (Coalesced?)
-      float val = input[row * cols + col];
-
-      // 4. Global Memory Store (Uncoalesced!)
-      output[col * rows + row] = val;
-  }
-}`;
-
 const LINES = [
   { num: 1, text: "int col = blockIdx.x * blockDim.x + threadIdx.x;" },
   { num: 2, text: "int row = blockIdx.y * blockDim.y + threadIdx.y;" },
@@ -251,7 +235,7 @@ const generateSteps = (): Step[] => {
 
 // --- Components ---
 
-const MemoryGrid = ({ type, data, highlightIndices, isCoalesced, rows, cols }: any) => {
+const MemoryGrid = ({ type, highlightIndices, isCoalesced, rows, cols }: any) => {
   return (
     <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 shadow-xl">
       <div className="flex justify-between items-center mb-3">
