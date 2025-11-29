@@ -34,6 +34,73 @@
     ```
     项目将启动在 `http://localhost:5173` (如果端口被占用，可能会是其他端口)。
 
+## 部署到 GitHub Pages
+
+你可以使用 `gh-pages` 将此项目部署到 GitHub Pages。
+
+1.  **安装 `gh-pages`**:
+    ```bash
+    npm install gh-pages --save-dev
+    ```
+
+2.  **配置 `package.json`**:
+    打开 `package.json` 文件，添加 `homepage` 字段和 `predeploy`、`deploy` 脚本。将 `<your-github-username>` 替换为你的 GitHub 用户名。
+
+    ```json
+      "homepage": "https://<your-github-username>.github.io/visual-cuda",
+      "scripts": {
+        "dev": "vite",
+        "build": "tsc -b && vite build",
+        "lint": "eslint .",
+        "preview": "vite preview",
+        "predeploy": "npm run build",
+        "deploy": "gh-pages -d dist"
+      },
+    ```
+
+3.  **配置 `vite.config.ts`**:
+    为了让 Vite 在构建时使用正确的资源路径，需要设置 `base` 选项。
+
+    ```typescript
+    import { defineConfig } from 'vite'
+    import tailwindcss from '@tailwindcss/vite'
+    import react from '@vitejs/plugin-react'
+    
+    // https://vite.dev/config/
+    export default defineConfig({
+      base: '/visual-cuda/', // 确保这里的名字和你的仓库名一致
+      plugins: [tailwindcss(),react()],
+    })
+    ```
+
+4.  **配置 `react-router-dom`**:
+    如果你的应用使用了 React Router，你需要为 `BrowserRouter` 设置 `basename` 以确保路由在子目录下正常工作。
+
+    在 `src/main.tsx` 中:
+    ```tsx
+    import { StrictMode } from 'react'
+    import { createRoot } from 'react-dom/client'
+    import { BrowserRouter } from 'react-router-dom'
+    import './index.css'
+    import App from './App.tsx'
+
+    createRoot(document.getElementById('root')!).render(
+      <StrictMode>
+        <BrowserRouter basename="/visual-cuda">
+          <App />
+        </BrowserRouter>
+      </StrictMode>,
+    )
+    ```
+
+5.  **部署**:
+    将你的代码推送到 GitHub 仓库的 `main` 分支，然后运行部署命令：
+
+    ```bash
+    npm run deploy
+    ```
+    这将会把 `dist` 目录的内容推送到名为 `gh-pages` 的新分支，你的站点稍后将通过你在 `homepage` 中指定的 URL 可用。
+
 ## 🎨 如何添加新的可视化
 
 你可以轻松地为项目贡献新的可视化页面。

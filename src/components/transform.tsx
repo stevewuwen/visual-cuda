@@ -424,7 +424,7 @@ const CodePanel = ({ step }: { step: Step }) => {
 // --- Main App Component ---
 
 export const metadata = {
-  name: 'Matrix Transform',
+  name: 'Matrix Transform(朴素矩阵转置）',
   description: 'A visualization of the matrix transpose operation, highlighting coalesced vs. uncoalesced memory access patterns.',
   image: 'https://tse1.mm.bing.net/th/id/OIP.sqfW01BX3RxX4qF3ths67AHaCb?rs=1&pid=ImgDetMain&o=7&rm=3',
 };
