@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, ChevronRight, ChevronLeft, RotateCcw, Cpu, Layers, Database, Code, ArrowRight } from 'lucide-react';
 
@@ -194,7 +194,7 @@ export default function CudaVisualizer() {
   const [matrixC, setMatrixC] = useState([...MATRIX_C_INIT]);
 
   const step = STEPS[currentStepIdx];
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<number | null>(null);
 
   // --- Animation Loop ---
   useEffect(() => {
@@ -396,9 +396,10 @@ export default function CudaVisualizer() {
                             <div className="text-[10px] text-slate-500 mb-2">As [2x2]</div>
                             <div className="grid grid-cols-2 gap-2">
                                 {sharedAs.map((val, idx) => {
-                                    const r = Math.floor(idx/2);
-                                    const c = idx%2;
-                                    const isHighlighted = step.phase === 'COMPUTE' && step.computeHighlight && r === Math.floor(idx/2) && c === step.computeHighlight.k; // Simplified visual
+                                                                         const r = Math.floor(idx/2);
+                                                                         const c = idx%2;
+                                                                        const isHighlighted = step.phase === 'COMPUTE' && step.computeHighlight && r === Math.floor(idx/2) && c === step.computeHighlight.k; // Simplified visual
+                                    
                                     return (
                                         <MatrixCell 
                                             key={`As-${idx}`} value={val} 
@@ -417,7 +418,6 @@ export default function CudaVisualizer() {
                             <div className="grid grid-cols-2 gap-2">
                                 {sharedBs.map((val, idx) => {
                                      const r = Math.floor(idx/2);
-                                     const c = idx%2;
                                      // Highlight Row in Bs? No, we highlight based on k loop
                                      // We need Bs[k][tx]. 
                                      const isHighlighted = step.phase === 'COMPUTE' && step.computeHighlight && r === step.computeHighlight.k;
