@@ -1,96 +1,181 @@
-# Role
-你是一位精通 CUDA C++ 并行计算架构和 React 前端开发的专家。我正在学习 CUDA，需要你帮助我将一段 CUDA C++ Kernel 代码转化为一个交互式的 React 可视化组件。
+## Role
+你是一位世界级的 CUDA C++ 并行计算专家，同时也是一位精通 React、TypeScript 和数据可视化的前端架构师。我正在学习 CUDA，需要通过交互式可视化来理解 Kernel 代码的底层行为。
 
-# Objective
-请阅读我提供的 CUDA 代码，编写一个 React 组件（使用 Tailwind CSS 进行样式设计，Framer Motion 进行动画演示），用于可视化这段代码在 GPU 上的执行流程。
+## Task
+请阅读我提供的 CUDA Kernel 代码，编写一个**完整的、单文件的 React 组件 (`.tsx`)**。该组件需要是一个独立的“微型模拟器”，用于在浏览器中动态演示这段代码在 GPU 架构上的执行过程。
 
-# Visualization Requirements (核心需求)
-你需要构建一个可视化的模拟器，重点展示以下四个方面：
-
-1. **Memory Hierarchy (内存层级流向)**:
-   - **Global Memory**: 展示为最外层的大型数据网格。
-   - **SM (Streaming Multiprocessor)**: 将屏幕分为几个区域代表 SM。
-   - **Shared Memory**: 在每个 SM 内部展示一块共享内存区域。
-   - **Register/Local Memory**: 在每个 Thread 旁边展示其私有变量。
-   - **动画**: 当代码执行读取/写入操作时，使用动画展示数据块（Block）在 Global -> Shared -> Register 之间的移动轨迹。
-
-2. **Thread Hierarchy & SM Scheduling (线程与SM调度)**:
-   - 展示 Grid, Block, 和 Thread 的关系。
-   - **SM 扩容/缩容**: 不需要展示真实的成千上万个线程。请使用“微缩模型”（例如：假设 warpSize=4，blockDim=8），展示当 Block 数量多于 SM 数量时，Block 是如何被分批调度到 SM 上执行的。
-
-3. **Warp Execution & Divergence (Warp 执行与阻塞)**:
-   - 将线程按 Warp 分组（为了可视化，假设 1个 Warp = 4个线程）。
-   - **Lockstep 执行**: 展示同一个 Warp 内的线程同时高亮执行同一行代码。
-   - **Divergence (分支发散)**: 如果代码中有 `if-else`，请直观展示“活跃线程”执行 if 分支时，“非活跃线程”是如何处于 Masked/Blocked 状态等待的。
-
-4. **Memory Coalescing (内存合并)**:
-   - 当 Warp 发起 Global Memory 读取时，如果线程访问的地址是连续的，用一种颜色（如绿色框）将这些内存块框在一起，标注为“Coalesced Transaction”。
-   - 如果访问是跨步或杂乱的，展示为多次独立的内存请求（红色或黄色），以此教育用户什么是 Uncoalesced access。
-
-# Tech Stack & Implementation Details
+## Technical Stack
 - **Framework**: React (Functional Components + Hooks).
-- **Styling**: Tailwind CSS (使用 Grid/Flex 布局).
-- **Animation**: Framer Motion (用于平滑的数据移动效果).
-- **Logic Simulation**:
-  - 不要试图在浏览器运行 C++。请用 JavaScript 编写一个简单的状态机（State Machine）来模拟我提供的 Kernel 逻辑。
-  - 提供一个 "Step Control"（上一步/下一步/播放）控制条，让我能逐行查看代码执行对应的硬件行为。
-  - 在侧边栏显示当前执行的伪代码行，并高亮正在执行的那一行。
+- **Language**: TypeScript (必须定义清晰的 Interface).
+- **Styling**: Tailwind CSS (用于布局和组件样式).
+- **Animation**: Framer Motion (用于 `layoutId` 和平滑的数据移动).
 
-# Constraints
-- 由于屏幕空间有限，请自动按比例缩小数据规模（例如数组大小设为 16 或 32，Block 数量设为 2-4 个）。
-- 代码必须是完整的、可直接复制运行的 `tsx` 文件。
+## Architecture Requirement: "Trace-Based Simulation" (关键架构)
+**不要**尝试在渲染循环中实时计算逻辑。请采用 **"预计算执行轨迹 (Pre-computed Execution Trace)"** 模式：
+1.  **Step Generator**: 编写一个纯函数 `generateExecutionTrace()`。它接受输入数据（如数组），模拟 CUDA 线程逻辑，并返回一个 `Step[]` 数组。
+2.  **Step Interface**: 每个 `Step` 对象应包含：
+    - `activeLineId`: 当前高亮的代码行号。
+    - `threads`: 一个对象数组，描述所有线程在当前步骤的状态（Global Memory 值, Shared Memory 值, Register 值, 活跃状态 `isActive`, 掩码状态 `isMasked`）。
+    - `memoryHighlights`: 用于标记 Global Memory 读写操作（如 'coalesced', 'uncoalesced'）。
+    - `description`: 一句文本，解释当前发生了什么（例如："Warp 0 is reading global memory", "Thread 1 is masked due to divergence"）。
+3.  **Visualizer**: React 组件只需维护一个 `currentStepIndex` 状态，根据 `trace[currentStepIndex]` 渲染画面。
 
-# My CUDA Code
+## Visualization Requirements
+
+### 1. Layout
+创建一个三栏布局：
+- **左侧 (Code Panel)**: 显示 CUDA C++ 代码，高亮当前 `activeLineId`。
+- **中间 (GPU View)**: 核心可视化区域。
+    - **Global Memory**: 顶部展示输入和输出的数组。
+    - **SM (Streaming Multiprocessor)**: 中间容器，包含 Block。
+    - **Shared Memory**: SM 内部的一块独立区域。
+    - **Threads (Warp View)**: 底部展示线程。请将线程按 **Warp (设为 4 个线程一组)** 分组展示。
+- **底部 (Controls)**: 播放/暂停、上一步/下一步、重置按钮、以及当前的 `description` 文本。
+
+### 2. Behavior Simulation
+- **Memory Hierarchy**: 当发生 `g_idata[idx]` 读取时，使用 Framer Motion 的 `layoutId` 产生从 Global Memory 到 Register 的位移这个动画。
+- **Memory Coalescing**:
+    - 分析代码中的内存访问模式。
+    - 如果 Warp 内线程访问连续地址，在 Global Memory 上画一个绿色的框包裹这些数据块，标注 "Coalesced"。
+    - 如果访问不连续，用红色独立高亮，标注 "Uncoalesced"。
+
+## Constraints & Assumptions
+- **Scale**: 自动缩小规模。
+- **Simplification**: 忽略复杂的 Grid 结构，只关注 **1 个 Block** 内部的执行。
+- **Completeness**: 代码必须包含所有必要的 import、类型定义和样式，确保我可以复制到 react-app 中直接运行。
+
+## My CUDA Code
 ```cpp
 #include <stdio.h>
 #include <cuda_runtime.h>
-#define TILE_WIDTH 32 // 假设 BlockDim 为 32x32
 
-__global__ void matrix_multiplication_shared_mem(const float *__restrict__ A, const float *__restrict__ B, float *C, int M, int N, int K)
+// 宏定义块大小
+// TS (Tile Size): 每个 Block 计算 64x64 的 C
+// WPT (Work Per Thread): 每个线程计算 4x4 的 C
+// TS_K: K 维度(你的代码里是 N 维度)的分块大小，设为 8 或 16
+#define TS 64
+#define WPT 4
+#define TS_K 16 
+
+// 优化后的 Kernel
+__global__ void matrix_multiplication_optimized(
+    const float* __restrict__ A, 
+    const float* __restrict__ B, 
+    float* __restrict__ C, 
+    int M, int N, int K) 
 {
-    // 申请共享内存
-    __shared__ float As[TILE_WIDTH][TILE_WIDTH];
-    __shared__ float Bs[TILE_WIDTH][TILE_WIDTH];
+    // 每个 Block 处理 C 中 TS x TS (64x64) 的区域
+    // 线程块维度: dim3(TS/WPT, TS/WPT) -> (16, 16) -> 256 个线程
+    // 1. 声明共享内存
+    // As: 存储 A 的切片 [TS][TS_K] -> [64][16]
+    // Bs: 存储 B 的切片 [TS_K][TS] -> [16][64]
+    __shared__ float As[TS][TS_K];
+    __shared__ float Bs[TS_K][TS];
 
-    int ty = threadIdx.y;
-    int tx = threadIdx.x;
+    // 2. 声明寄存器
+    // accum: 累加器，每个线程负责计算 4x4 = 16 个元素
+    float accum[WPT][WPT] = {0.0f};
+    
+    // reg_A, reg_B: 用于在内循环中缓存从 SMEM 读取的值
+    float reg_A[WPT];
+    float reg_B[WPT];
 
-    int row = blockIdx.y * TILE_WIDTH + ty;
-    int col = blockIdx.x * TILE_WIDTH + tx;
+    // 线程 ID 和 Block ID
+    int tx = threadIdx.x; // range 0-15
+    int ty = threadIdx.y; // range 0-15
+    int bx = blockIdx.x;
+    int by = blockIdx.y;
+    
+    // 当前线程负责的 C 矩阵起始坐标 (C 的分块左上角 + 线程偏移)
+    // 每个线程覆盖 WPT(4) 个像素宽/高
+    int row_c = by * TS + ty * WPT; 
+    int col_c = bx * TS + tx * WPT;
 
-    float acc = 0.0f;
-
-    for (int i = 0; i < (N + TILE_WIDTH - 1) / TILE_WIDTH; i++)
-    {
-        // 读取数据
-        if (row < M && TILE_WIDTH * i + tx < N)
-        {
-            As[ty][tx] = A[row * N + TILE_WIDTH * i + tx];
+    // 3. 循环遍历 N 维度 (步长 TS_K = 16)
+    for (int t = 0; t < N; t += TS_K) {
+        
+        // --- 加载数据到 Shared Memory (协作加载) ---
+        // 我们有 256 个线程。
+        // 需要加载 A 的 Tile: 64行 * 16列 = 1024 元素。每个线程加载 1024/256 = 4 个元素。
+        // 需要加载 B 的 Tile: 16行 * 64列 = 1024 元素。每个线程加载 4 个元素。
+        
+        // 加载 As (A 的子块): 
+        // 这里的逻辑是将 256 个线程映射到 64x16 的区域
+        // 我们使用 float4 向量化加载来极致优化带宽
+        
+        // 计算当前线程加载 As 的位置
+        // 将 16x16 的线程块视为 256 个线性线程
+        int tid = ty * (TS / WPT) + tx; // 0 ~ 255
+        
+        // 映射到 As[64][16]: 每一行 16 个元素，如果是 float4 就是 4 个 float4
+        // 256 个线程，每个加载 1 个 float4 (4个float)，正好 1024 个 float
+        // As 的行索引
+        int load_a_row = tid / (TS_K / 4); 
+        int load_a_col = (tid % (TS_K / 4)) * 4;
+        
+        // 从全局内存 A 加载到 As
+        // 全局索引: A[(by * TS + load_a_row) * N + (t + load_a_col)]
+        // 注意边界检查省略了，假设维度对其
+        if (by * TS + load_a_row < M && t + load_a_col < N) {
+             // 使用 float4 指针强转进行向量加载
+             float4 tmp = reinterpret_cast<const float4*>(&A[(by * TS + load_a_row) * N + (t + load_a_col)])[0];
+             As[load_a_row][load_a_col + 0] = tmp.x;
+             As[load_a_row][load_a_col + 1] = tmp.y;
+             As[load_a_row][load_a_col + 2] = tmp.z;
+             As[load_a_row][load_a_col + 3] = tmp.w;
         }
-        else
-        {
-            As[ty][tx] = 0.0f;
-        }
-        if (col < K && TILE_WIDTH * i + ty < N)
-        {
-            Bs[ty][tx] = B[(TILE_WIDTH * i + ty) * K + col];
-        }
-        else
-        {
-            Bs[ty][tx] = 0.0f;
-        }
-        __syncthreads(); // 等待线程块里面的线程都搬运完成
 
-        for (int j = 0; j < TILE_WIDTH; j++)
-        {
-            acc += As[ty][j] * Bs[j][tx]; //访问线程块里面的共享内存时，没有合并访问，只在乎bank config
+        // 加载 Bs (B 的子块): [16][64]
+        // 同样用 tid 映射。每行 64 个元素 = 16 个 float4。
+        // 总共 16 行。总 float4 数 = 16 * 16 = 256。正好每个线程取 1 个 float4。
+        int load_b_row = tid / (TS / 4);
+        int load_b_col = (tid % (TS / 4)) * 4;
+
+        if (t + load_b_row < N && bx * TS + load_b_col < K) {
+             float4 tmp = reinterpret_cast<const float4*>(&B[(t + load_b_row) * K + (bx * TS + load_b_col)])[0];
+             Bs[load_b_row][load_b_col + 0] = tmp.x;
+             Bs[load_b_row][load_b_col + 1] = tmp.y;
+             Bs[load_b_row][load_b_col + 2] = tmp.z;
+             Bs[load_b_row][load_b_col + 3] = tmp.w;
         }
 
-        __syncthreads();
+        __syncthreads(); // 等待数据加载完成
+
+        // --- 在寄存器上进行计算 ---
+        // 遍历 Shared Memory 中的 TS_K (16) 维度
+        #pragma unroll
+        for (int k = 0; k < TS_K; ++k) {
+            
+            // 1. 将所需的 As 和 Bs 数据预加载到寄存器
+            // 每个线程计算 4x4，需要 As 的一列 4 个值，Bs 的一行 4 个值
+            for (int i = 0; i < WPT; ++i) {
+                reg_A[i] = As[ty * WPT + i][k];
+                reg_B[i] = Bs[k][tx * WPT + i];
+            }
+
+            // 2. 外积计算 (Outer Product)
+            // 计算 4x4 的结果，复用 reg_A 和 reg_B
+            for (int row = 0; row < WPT; ++row) {
+                for (int col = 0; col < WPT; ++col) {
+                    accum[row][col] += reg_A[row] * reg_B[col];
+                }
+            }
+        }
+        
+        __syncthreads(); // 等待计算完成，准备加载下一块
     }
-    if (row<M && col<K)
-    {
-        C[row*K+col] = acc;
+
+    // 4. 写回结果到全局内存
+    // 每个线程写回 4x4 个点
+    for (int row = 0; row < WPT; ++row) {
+        for (int col = 0; col < WPT; ++col) {
+            int global_row = row_c + row;
+            int global_col = col_c + col;
+            
+            if (global_row < M && global_col < K) {
+                C[global_row * K + global_col] = accum[row][col];
+            }
+        }
     }
 }
 ```
